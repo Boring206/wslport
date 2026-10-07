@@ -1,0 +1,48 @@
+{
+  "name": "wslport",
+  "version": "0.1.0",
+  "description": "查出是誰佔用了 port，連 WSL 裡的行程都追得到。Find what is holding a TCP port on Windows, tracing through wslrelay.exe into the WSL distro.",
+  "keywords": [
+    "wsl",
+    "wsl2",
+    "wslrelay",
+    "port",
+    "kill-port",
+    "eaddrinuse",
+    "windows",
+    "cli"
+  ],
+  "homepage": "https://github.com/Boring206/wslport#readme",
+  "bugs": "https://github.com/Boring206/wslport/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Boring206/wslport.git"
+  },
+  "license": "MIT",
+  "author": "Boring206",
+  "bin": {
+    "wslport": "bin/wslport.js"
+  },
+  "files": [
+    "bin/wslport.js",
+    "bin/wslport-x64.exe",
+    "bin/wslport-arm64.exe"
+  ],
+  "os": [
+    "win32",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/build.mjs --test",
+    "e2e": "bash scripts/e2e.sh",
+    "prepack": "node scripts/build.mjs --test && node scripts/build.mjs"
+  }
+}
