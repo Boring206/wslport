@@ -259,19 +259,19 @@ func isRelayImage(image string) bool {
 // winProtectReason 對不該由本工具關閉的行程回傳說明文字；可以關閉則回傳空字串。
 func winProtectReason(pid uint32, image string) string {
 	if pid == 0 || pid == 4 {
-		return msgProtectKernel
+		return T.ProtectKernel
 	}
 	switch baseName(image) {
 	case "csrss", "wininit", "lsass", "services", "smss", "winlogon":
-		return msgProtectSystem
+		return T.ProtectSystem
 	case "vmmem", "vmmemwsl", "wslservice":
-		return msgProtectWSL
+		return T.ProtectWSL
 	case "wslrelay", "wslhost":
-		return msgProtectRelay
+		return T.ProtectRelay
 	case "svchost":
-		return msgProtectSvchost
+		return T.ProtectSvchost
 	case "com.docker.backend":
-		return msgProtectDocker
+		return T.ProtectDocker
 	}
 	return ""
 }

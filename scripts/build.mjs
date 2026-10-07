@@ -18,7 +18,7 @@ function findGo() {
   const probe = spawnSync('go', ['version'], { stdio: 'ignore' });
   if (!probe.error && probe.status === 0) return 'go';
   if (process.platform === 'linux' && existsSync(WINDOWS_GO)) return WINDOWS_GO;
-  console.error('找不到 Go，請先安裝 Go 1.24 以上：https://go.dev/dl/');
+  console.error('Go was not found. Install Go 1.24 or newer: https://go.dev/dl/');
   process.exit(1);
 }
 
@@ -59,6 +59,6 @@ if (process.argv.includes('--test')) {
   for (const [goarch, name] of [['amd64', 'x64'], ['arm64', 'arm64']]) {
     const out = `bin/wslport-${name}.exe`;
     run(go, ['build', '-trimpath', '-ldflags', ldflags, '-o', out, '.'], { ...target, GOARCH: goarch });
-    console.log(`已建置 ${out}（v${pkg.version}）`);
+    console.log(`built ${out} (v${pkg.version})`);
   }
 }

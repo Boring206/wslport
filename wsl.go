@@ -311,7 +311,7 @@ func firstLine(s string) string {
 			return l
 		}
 	}
-	return msgNoOutput
+	return T.NoOutput
 }
 
 // started 由 uptime 與 starttime 推算啟動時間，不受 WSL 時鐘漂移影響。
@@ -332,7 +332,7 @@ func (pr *probeResult) started(p *wslProc, now time.Time) time.Time {
 func probeDistros(port int) (results []probeResult, wsl1 []string) {
 	began := time.Now()
 	distros, _ := listDistros()
-	debugf("wsl.exe -l -v：%d 個 distro，%v", len(distros), time.Since(began).Round(time.Millisecond))
+	debugf("wsl.exe -l -v: %d distro(s), %v", len(distros), time.Since(began).Round(time.Millisecond))
 	var targets []string
 	for _, d := range distros {
 		switch {
@@ -355,9 +355,9 @@ func probeDistros(port int) (results []probeResult, wsl1 []string) {
 			out, err := runInDistro(name, probeScript, 5*time.Second, strconv.Itoa(port))
 			pr := parseProbe(name, string(out))
 			if errors.Is(err, context.DeadlineExceeded) {
-				pr.Err = errors.New(msgProbeTimeout)
+				pr.Err = errors.New(T.ProbeTimeout)
 			}
-			debugf("探測 %s：%v，模式 %q，%d 個監聽者，%d 個行程，錯誤 %v",
+			debugf("probe %s: %v, mode %q, %d listener(s), %d process(es), error %v",
 				name, time.Since(began).Round(time.Millisecond), pr.Mode, len(pr.Socks), len(pr.Procs), pr.Err)
 			results[i] = pr
 		}()

@@ -1,123 +1,153 @@
 # wslport
 
-> **English:** `wslport 3000` tells you what is holding a TCP port on Windows. When Windows only shows
-> `wslrelay.exe`, it follows the trail into WSL and names the distro, process, command line and working
-> directory, then offers to kill it. It also explains ports that are blocked by Windows reserved port
-> ranges even though nothing is listening. The interface is in Traditional Chinese.
+**English** | [繁體中文](README.zh-TW.md)
 
-查出是誰佔用了 port，連 WSL 裡的行程都追得到，確認後幫你關掉。
+Find out what is holding a TCP port on Windows, even when the real owner is a process inside WSL, and
+kill it once you confirm.
 
-在 Windows 遇到「port 3000 已被佔用」時，`netstat` 或工作管理員查到的佔用者常常只是 `wslrelay.exe`。
-那是 WSL 的 localhost 轉送程式，真正的佔用者在某個 distro 裡，而且把 `wslrelay.exe` 關掉只會讓所有 WSL
-port 的轉送一起失效。`wslport` 直接告訴你答案：
+When "port 3000 is already in use" on Windows, `netstat` and Task Manager often point at `wslrelay.exe`.
+That is WSL's localhost forwarder. The real owner lives in one of your distros, and killing `wslrelay.exe`
+only breaks forwarding for every WSL port. `wslport` gives you the actual answer:
 
 ```
 > wslport 3000
-Port 3000 → WSL「Ubuntu-24.04」裡的 node (PID 4321)
-  位址     *:3000
-  指令     next-server (v15.1.0)
-  目錄     /home/me/projects/my-app
-  使用者   me
-  啟動     2 小時前
-  父行程   sh -c next dev (PID 4300)
-           ← npm run dev (PID 4290)
-           ← -bash (PID 512)
-  Windows 端的 wslrelay.exe (PID 9876) 只是轉送，真正的佔用者在 WSL 裡。
+Port 3000 → node (PID 4321) in WSL distro Ubuntu-24.04
+  Address     *:3000
+  Command     next-server (v15.1.0)
+  Directory   /home/me/projects/my-app
+  User        me
+  Started     2 hr ago
+  Parent      sh -c next dev (PID 4300)
+              ← npm run dev (PID 4290)
+              ← -bash (PID 512)
+  wslrelay.exe (PID 9876) on the Windows side is only a forwarder; the real owner is inside WSL.
 
-要關掉 node (PID 4321) 嗎？ [y/N]
+Kill node (PID 4321)? [y/N]
 ```
 
-## 安裝
+## Install
 
-需要 Node.js 18 以上。在 Windows 的終端機或 WSL 裡安裝都可以：
+Requires Node.js 18 or newer. Install from a Windows terminal or from inside WSL:
 
 ```
 npm install -g wslport
 ```
 
-也可以不安裝直接跑：
+Or run it without installing:
 
 ```
 npx wslport 3000
 ```
 
-套件裡是一支編好的 Windows 執行檔（x64 與 arm64），不需要另外安裝 Go。在 WSL 裡安裝時，同一支執行檔會透過
-WSL 的 Windows 互通功能執行。
+The package ships a prebuilt Windows executable (x64 and arm64), so Go is not needed. When installed
+inside WSL, the same executable runs through WSL's Windows interop.
 
-## 用法
-
-```
-wslport              列出 Windows 與各 distro 所有監聽中的 port
-wslport <port>       查這個 port 的佔用者，找到後詢問是否關閉
-
-  -n, --no-kill      只查詢，不詢問是否關閉
-  -k, --kill         不詢問，直接關閉（只在佔用者唯一時有效）
-  -f, --force        WSL 裡的行程直接用 SIGKILL 強制終止
-  -h, --help         顯示說明
-  -v, --version      顯示版本
-      --debug        顯示每個步驟的耗時與探測結果
-```
-
-結束碼：`0` 找到佔用者（或已關閉）、`1` port 沒有人使用、`2` 發生錯誤，或指定了 `-k` 卻沒能關閉。
-
-port 可以寫成 `3000` 或 `:3000`，選項放在 port 前後都可以。
-
-## 它會告訴你什麼
-
-- **Windows 的程式**：名稱、PID、完整路徑、指令列、工作目錄、啟動時間。
-- **WSL 裡的行程**：哪個 distro、名稱、PID、指令列、工作目錄、使用者；如果是 systemd 服務，會顯示服務單位名稱。
-- **是誰啟動它的**：往上列出最多三層父行程，所以看得出這個 `node` 是哪個終端機裡的 `npm run dev` 帶起來的。
-- **Docker 容器**：佔用者是 Docker 替容器開的 port 時，顯示容器名稱與映像，關閉時改用 `docker stop`。
-- **沒有人監聽卻綁不上的 port**：port 落在 Windows 的保留埠範圍（Hyper-V／WinNAT）時，`netstat` 什麼都查不到，
-  程式卻會收到「存取被拒」。`wslport` 會指出是哪一段範圍，並附上暫時與永久的解法。
-- **被對外連線暫時借用的 port**：系統把這個 port 分配給某條對外連線時，會說明是哪個程式，但不會去關它。
-
-## 關閉行程時的保護
-
-- 一律先顯示、再詢問；沒有可互動的輸入時視為「否」。
-- 關閉前會比對行程的啟動時間，確認 PID 沒有被別的行程重複使用。
-- WSL 裡的行程先送 `SIGTERM`，3 秒內沒結束才詢問是否 `SIGKILL`。
-- 關閉後會再查一次。如果 port 又被同名的行程佔用，會提示是 systemd、PM2 或 Windows 服務把它重新啟動了。
-- 下列對象只顯示、不提供關閉：Windows 核心（PID 4）、關鍵系統行程、`svchost.exe`、WSL 本身的行程，以及
-  `wslrelay.exe`。
-- `wslport` 只查詢與關閉行程，不會更改任何系統設定；修復保留埠範圍的指令只會印出來，由你自己決定要不要執行。
-
-## 運作方式
-
-1. 直接呼叫 Windows API（`GetExtendedTcpTable`）讀取 TCP 表，不解析 `netstat` 的文字輸出，所以不受系統語系影響。
-2. 同時對每個**執行中**的 WSL2 distro 執行一段唯讀的探測腳本（`ss` 加上 `/proc`），以 root 身分執行才看得到所有使用者的行程。已停止的 distro 不會被啟動。
-3. 合併兩邊的結果：Windows 端若是 `wslrelay.exe`，而 WSL 裡有同一個 port 的監聽者，就以 WSL 裡的行程為準。
-
-不論 Windows 端查到什麼，都會探測 WSL，所以在 mirrored 網路模式（Windows 端完全看不到佔用者）下也查得到。
-
-## 限制
-
-- 只處理 TCP。
-- 不追進 WSL1 的 distro；WSL1 的行程會直接出現在 Windows 這一側。
-- 關閉服務或其他使用者的 Windows 行程需要系統管理員權限，請用「以系統管理員身分執行」開啟終端機。這類行程的路徑、指令列與工作目錄也讀不到。
-- distro 裡需要有 `ss`（iproute2）或 `netstat`，多數 distro 預設就有。
-- 在 PowerShell 5.1 裡把輸出接到管線時，中文可能變成亂碼；直接顯示在終端機上沒有問題。
-
-## 疑難排解
-
-- **查不到 WSL 裡的行程**：加上 `--debug` 看每個 distro 的探測結果。distro 必須是執行中的 WSL2，而且裡面要有 `ss` 或 `netstat`。
-- **每次執行都要等一兩秒**：`--debug` 的第一行「行程建立到開始執行」如果就佔了大部分時間，延遲是發生在 wslport 開始執行之前（例如防毒軟體在掃描執行檔），不是查詢本身慢。查詢本身通常在半秒內完成，時間主要花在呼叫 `wsl.exe`。
-- **在 WSL 裡出現「無法執行 Windows 程式」**：WSL 的 Windows 互通被關閉了，請檢查 `/etc/wsl.conf` 的 `[interop]` 設定。
-- **關閉後 port 馬上又被佔用**：有監督程式（systemd、PM2、Docker 的 restart policy）在重新啟動它，要從監督程式那邊停止；wslport 會指出是哪一個。
-
-## 開發
-
-需要 Go 1.24 以上與 Node.js。
+## Usage
 
 ```
-npm test         # go vet 加上單元測試
-npm run build    # 編出 bin/wslport-x64.exe 與 bin/wslport-arm64.exe
-npm run e2e      # 端對端測試：在 WSL 裡實際啟動、查詢並關閉測試用的行程
+wslport              list every listening port on Windows and in each distro
+wslport <port>       show what holds this port, then offer to kill it
+
+  -n, --no-kill      only look, never offer to kill
+  -k, --kill         kill without asking (only when there is exactly one owner)
+  -f, --force        kill WSL processes with SIGKILL straight away
+      --lang <lang>  interface language: en or zh-TW
+      --debug        show timings and probe results
+  -h, --help         show help
+  -v, --version      show the version
+```
+
+Exit codes: `0` an owner was found (or killed), `1` the port is not in use, `2` an error occurred or
+`-k` could not kill anything.
+
+The port can be written as `3000` or `:3000`, and options may come before or after it.
+
+## Language
+
+The interface is available in English and Traditional Chinese. By default it follows the Windows display
+language: Traditional Chinese (Taiwan, Hong Kong, Macau) gets Chinese, everything else gets English.
+
+To choose explicitly, pass `--lang en` or `--lang zh-TW`, or set the `WSLPORT_LANG` environment variable.
+
+## What it tells you
+
+- **Windows programs**: name, PID, full path, command line, working directory and start time.
+- **Processes inside WSL**: which distro, name, PID, command line, working directory and user, plus the
+  systemd unit when it is a service.
+- **Who started it**: up to three parent processes, so you can tell that this `node` came from
+  `npm run dev` in a particular terminal.
+- **Docker containers**: when Docker published the port for a container, the container name and image
+  are shown and killing uses `docker stop` instead.
+- **Ports that fail to bind although nothing listens**: when a port falls inside a Windows reserved port
+  range (Hyper-V/WinNAT), `netstat` shows nothing yet programs get "access denied". `wslport` names the
+  range and prints a temporary and a permanent fix.
+- **Ports borrowed by an outbound connection**: when the system has handed the port to an outgoing
+  connection, it says which program owns it and leaves it alone.
+
+## Safeguards when killing
+
+- It always shows first and asks second. No interactive input counts as "no".
+- Before killing, it compares the process start time to make sure the PID has not been reused.
+- WSL processes get `SIGTERM` first; only if they are still alive after 3 seconds does it ask about
+  `SIGKILL`.
+- It looks the port up again afterwards. If the same program holds it again, it tells you that systemd,
+  PM2 or a Windows service restarted it.
+- These are shown but never killed: the Windows kernel (PID 4), critical system processes,
+  `svchost.exe`, WSL's own processes and `wslrelay.exe`.
+- `wslport` only inspects and kills processes. It never changes system settings; the commands that fix
+  reserved port ranges are printed for you to run or not.
+
+## How it works
+
+1. It reads the TCP table straight from the Windows API (`GetExtendedTcpTable`) instead of parsing
+   `netstat` output, so the system language does not matter.
+2. In parallel, it runs a read-only probe script (`ss` plus `/proc`) in every **running** WSL2 distro,
+   as root so that processes of all users are visible. Stopped distros are never started.
+3. It merges both sides: when Windows shows `wslrelay.exe` and a WSL process listens on the same port,
+   the WSL process is reported as the owner.
+
+WSL is probed whatever the Windows side shows, so it also works in mirrored networking mode, where
+Windows does not show an owner at all.
+
+## Limitations
+
+- TCP only.
+- WSL1 distros are not probed; their processes appear on the Windows side directly.
+- Killing services or other users' Windows processes needs an elevated terminal (Run as administrator).
+  Their path, command line and working directory cannot be read either.
+- The distro needs `ss` (iproute2) or `netstat`; most distros have one by default.
+
+## Troubleshooting
+
+- **A WSL process is not found**: add `--debug` to see the probe result for each distro. The distro has
+  to be a running WSL2 distro with `ss` or `netstat` installed.
+- **Every run takes a second or two**: if the first `--debug` line, `process creation to program start`,
+  accounts for most of the time, the delay happens before wslport starts running (for example an
+  antivirus scanning the executable), not in the lookup. Excluding the wslport executable in the
+  antivirus settings is the usual remedy. The lookup itself usually finishes within half a second,
+  most of it spent calling `wsl.exe`.
+- **"cannot run Windows programs" inside WSL**: Windows interop is disabled; check the `[interop]`
+  section of `/etc/wsl.conf`.
+- **The port is taken again right after killing**: a supervisor (systemd, PM2, a Docker restart policy)
+  restarts the process. Stop it from the supervisor; wslport tells you which one.
+
+## Development
+
+Requires Go 1.24 or newer and Node.js.
+
+```
+npm test         # go vet plus unit tests
+npm run build    # builds bin/wslport-x64.exe and bin/wslport-arm64.exe
+npm run e2e      # end-to-end tests: starts, queries and kills real test processes inside WSL
 node bin/wslport.js 3000
 ```
 
-在 WSL 裡開發時，如果 WSL 沒有安裝 Go，建置腳本會改用 Windows 上的 `go.exe`；也可以用環境變數 `GO` 指定路徑。
+When developing inside WSL without Go installed there, the build script falls back to `go.exe` on
+Windows; set the `GO` environment variable to point somewhere else.
 
-## 授權
+All interface text lives in `i18n.go`, once per language. Add or change both when you touch a message;
+the tests check that nothing is missing.
+
+## License
 
 [MIT](LICENSE)

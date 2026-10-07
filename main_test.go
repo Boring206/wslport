@@ -26,6 +26,8 @@ func TestParseArgs(t *testing.T) {
 		{[]string{"-h"}, options{help: true}},
 		{[]string{"--version"}, options{version: true}},
 		{[]string{"3000", "--debug", "-n"}, options{port: 3000, debug: true, noKill: true}},
+		{[]string{"--lang", "en", "3000"}, options{port: 3000}},
+		{[]string{"3000", "--lang=zh-TW", "-n"}, options{port: 3000, noKill: true}},
 		{[]string{"65535"}, options{port: 65535}},
 	}
 	for _, c := range ok {
@@ -37,6 +39,7 @@ func TestParseArgs(t *testing.T) {
 	bad := [][]string{
 		{"0"}, {"65536"}, {"abc"}, {"-3000"}, {"3000", "3001"},
 		{"3000", "--nope"}, {"3000", "-x"}, {"3000", "-n", "-k"}, {"-k"}, {"-n"}, {"-f"},
+		{"3000", "--lang"}, {"3000", "--lang", "fr"}, {"--lang=", "3000"}, {"--lang=klingon"},
 	}
 	for _, args := range bad {
 		if _, err := parseArgs(args); err == nil {
