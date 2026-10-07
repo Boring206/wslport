@@ -98,7 +98,7 @@ func wslOwners(pr *probeResult, port int, now time.Time) []*Owner {
 			if _, ok := addrs[pid]; !ok {
 				pids = append(pids, pid)
 			}
-			addrs[pid] = appendUnique(addrs[pid], s.Local)
+			addrs[pid] = appendUnique(addrs[pid], s.Display())
 		}
 	}
 	sort.Ints(pids)
@@ -174,24 +174,24 @@ func newWSLOwner(pr *probeResult, pid int, now time.Time) *Owner {
 func orphanSocks(probes []probeResult, port int) []string {
 	claimed := map[string]bool{}
 	seen := map[string]bool{}
-	var order []string
+	var order []wslSock
 	for _, pr := range probes {
 		for _, s := range pr.Socks {
 			if port != 0 && s.Port != port {
 				continue
 			}
 			if len(s.PIDs) > 0 {
-				claimed[s.Local] = true
-			} else if !seen[s.Local] {
-				seen[s.Local] = true
-				order = append(order, s.Local)
+				claimed[s.Key()] = true
+			} else if !seen[s.Key()] {
+				seen[s.Key()] = true
+				order = append(order, s)
 			}
 		}
 	}
 	var orphans []string
-	for _, local := range order {
-		if !claimed[local] {
-			orphans = append(orphans, local)
+	for _, s := range order {
+		if !claimed[s.Key()] {
+			orphans = append(orphans, s.Display())
 		}
 	}
 	return orphans
@@ -228,6 +228,34 @@ func mergeReport(port int, win []*Owner, probes []probeResult, now time.Time) *R
 	}
 	rep.Owners = append(rep.Owners, wsl...)
 	return rep
+}
+
+// mergeContainerOwners 把指向同一組容器的 Docker 行程併成一個佔用者。
+// Docker 會替同一個發佈的 port 各開一個 IPv4 與一個 IPv6 的 docker-proxy；
+// 對使用者來說那是同一個容器，分成兩筆會變成要用編號選，-k 也用不了。
+func mergeContainerOwners(owners []*Owner) []*Owner {
+	first := map[string]*Owner{}
+	var out []*Owner
+	for _, o := range owners {
+		if len(o.Containers) == 0 {
+			out = append(out, o)
+			continue
+		}
+		key := o.Where + "|" + o.Distro
+		for _, c := range o.Containers {
+			key += "|" + c.ID
+		}
+		if kept := first[key]; kept != nil {
+			for _, a := range o.Addrs {
+				kept.Addrs = appendUnique(kept.Addrs, a)
+			}
+			kept.Workers = append(kept.Workers, o.PID)
+			continue
+		}
+		first[key] = o
+		out = append(out, o)
+	}
+	return out
 }
 
 func hasWSLOwner(rep *Report) bool {
@@ -322,11 +350,20 @@ func lookupPort(port int, diag bool) (*Report, error) {
 
 	rep := mergeReport(port, win, probes, time.Now())
 	rep.WSL1 = wsl1
+	// 同一個位置（Windows 或某個 distro）只需要問 docker 一次。
+	containers := map[string][]container{}
 	for _, o := range rep.Owners {
-		if isDockerOwner(o) {
-			o.Containers = findContainers(o.Distro, port)
+		if !isDockerOwner(o) {
+			continue
 		}
+		found, asked := containers[o.Distro]
+		if !asked {
+			found = findContainers(o.Distro, port)
+			containers[o.Distro] = found
+		}
+		o.Containers = found
 	}
+	rep.Owners = mergeContainerOwners(rep.Owners)
 
 	if !diag {
 		return rep, nil

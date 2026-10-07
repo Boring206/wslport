@@ -43,6 +43,25 @@ type wslSock struct {
 	PIDs  []int // 空的表示這個 distro 看不到擁有者（屬於別的 PID 命名空間）
 }
 
+// Key 讓同一個 socket 在不同工具下對得起來。
+// 各 distro 可能用不同的工具：雙堆疊的萬用位址，ss 印成 *:3000，netstat 印成 :::3000；
+// ss 還會在位址後面加上 %介面。只比對字串的話，同一個監聽者會被當成兩個。
+func (s wslSock) Key() string {
+	addr := s.Addr
+	if addr == "*" {
+		addr = "::"
+	}
+	return addr + "|" + strconv.Itoa(s.Port)
+}
+
+// Display 是統一格式的「位址:port」，IPv6 加方括號。
+func (s wslSock) Display() string {
+	if strings.Contains(s.Addr, ":") {
+		return "[" + s.Addr + "]:" + strconv.Itoa(s.Port)
+	}
+	return s.Addr + ":" + strconv.Itoa(s.Port)
+}
+
 type wslProc struct {
 	PID        int
 	PPID       int

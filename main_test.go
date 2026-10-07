@@ -225,6 +225,21 @@ func TestPrintReportWording(t *testing.T) {
 		t.Errorf("mirrored empty report:\n%s", out)
 	}
 
+	// WSL1 的行程出現在 Windows 這一側、沒有執行檔路徑：要提示它其實在 WSL1 裡（實機測過是這個樣子）。
+	rep = mergeReport(3005, []*Owner{winOwner(6068, "busybox", "0.0.0.0:3005")}, nil, testNow)
+	rep.WSL1 = []string{"legacy"}
+	if out := render(rep); !strings.Contains(out, "很可能是 WSL1 distro（legacy）裡的行程") {
+		t.Errorf("WSL1 hint missing:\n%s", out)
+	}
+	// 一般的 Windows 程式有路徑，不該出現這個提示。
+	normal := winOwner(1111, "node.exe", "0.0.0.0:3005")
+	normal.Exe = `C:\Program Files\nodejs\node.exe`
+	rep = mergeReport(3005, []*Owner{normal}, nil, testNow)
+	rep.WSL1 = []string{"legacy"}
+	if out := render(rep); strings.Contains(out, "很可能是 WSL1") {
+		t.Errorf("WSL1 hint shown for a normal Windows program:\n%s", out)
+	}
+
 	// 非監聽佔用：只說明，不當成可關閉的對象。
 	rep = &Report{Port: 3000, Ephemeral: []*Owner{winOwner(555, "chrome.exe")}}
 	if out := render(rep); !rep.Occupied() || !strings.Contains(out, "chrome.exe (PID 555)") || len(rep.Owners) != 0 {
