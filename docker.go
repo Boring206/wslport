@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -48,6 +49,11 @@ func runDocker(distro string, timeout time.Duration, args ...string) (string, er
 	exe, err := exec.LookPath("docker.exe")
 	if err != nil {
 		return "", err
+	}
+	// 目前目錄剛好就是 docker.exe 所在的資料夾時，LookPath 會回傳相對路徑；
+	// 下面把工作目錄改到別處，相對路徑就會找不到檔案，所以先轉成絕對路徑。
+	if abs, err := filepath.Abs(exe); err == nil {
+		exe = abs
 	}
 	cmd := exec.CommandContext(ctx, exe, args...)
 	cmd.Dir = systemRoot()
