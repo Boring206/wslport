@@ -1,0 +1,3 @@
+bin/*.exe
+*.tgz
+node_modules/

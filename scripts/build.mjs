@@ -1,0 +1,64 @@
+// 建置與測試腳本。
+//   node scripts/build.mjs          編出 bin/wslport-x64.exe 與 bin/wslport-arm64.exe
+//   node scripts/build.mjs --test   go vet 加上單元測試
+// 版本號以 package.json 為唯一來源，建置時注入執行檔。
+
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const WINDOWS_GO = '/mnt/c/Program Files/Go/bin/go.exe';
+
+// PATH 上有 go 就用它；在 WSL 裡找不到時，退回 Windows 安裝的 go.exe。
+function findGo() {
+  if (process.env.GO) return process.env.GO;
+  const probe = spawnSync('go', ['version'], { stdio: 'ignore' });
+  if (!probe.error && probe.status === 0) return 'go';
+  if (process.platform === 'linux' && existsSync(WINDOWS_GO)) return WINDOWS_GO;
+  console.error('找不到 Go，請先安裝 Go 1.24 以上：https://go.dev/dl/');
+  process.exit(1);
+}
+
+const go = findGo();
+// 從 WSL 執行 Windows 的 go.exe 時，環境變數要列在 WSLENV 裡才傳得過去。
+const viaInterop = process.platform === 'linux' && go.endsWith('.exe');
+
+function run(cmd, args, env = {}) {
+  const merged = { ...process.env, ...env };
+  if (viaInterop) {
+    merged.WSLENV = [process.env.WSLENV, ...Object.keys(env)].filter(Boolean).join(':');
+  }
+  const result = spawnSync(cmd, args, { cwd: root, stdio: 'inherit', env: merged });
+  if (result.error) {
+    console.error(`${cmd}: ${result.error.message}`);
+    process.exit(1);
+  }
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+const target = { GOOS: 'windows', CGO_ENABLED: '0' };
+mkdirSync(join(root, 'bin'), { recursive: true });
+
+if (process.argv.includes('--test')) {
+  run(go, ['vet', './...'], target);
+  // 先把測試編成執行檔再自己執行，不直接用 go test：
+  // 防毒軟體掃描剛編好的 exe 時，go 會因為刪不掉暫存檔而回報失敗，即使測試全部通過。
+  const testExe = join(root, 'bin', 'wslport.test.exe');
+  run(go, ['test', '-c', '-o', 'bin/wslport.test.exe', '.'], target);
+  run(testExe, []);
+  try {
+    rmSync(testExe, { force: true });
+  } catch {
+    // 檔案還被掃描中就留著，bin/*.exe 已列在 .gitignore，也不會被打包。
+  }
+} else {
+  const ldflags = `-s -w -X main.version=${pkg.version}`;
+  for (const [goarch, name] of [['amd64', 'x64'], ['arm64', 'arm64']]) {
+    const out = `bin/wslport-${name}.exe`;
+    run(go, ['build', '-trimpath', '-ldflags', ldflags, '-o', out, '.'], { ...target, GOARCH: goarch });
+    console.log(`已建置 ${out}（v${pkg.version}）`);
+  }
+}
