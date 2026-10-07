@@ -116,6 +116,10 @@ Windows does not show an owner at all.
 - Killing services or other users' Windows processes needs an elevated terminal (Run as administrator).
   Their path, command line and working directory cannot be read either.
 - The distro needs `ss` (iproute2) or `netstat`; most distros have one by default.
+- Docker: Docker Engine installed inside a WSL distro is tested. Docker Desktop is handled according to
+  Docker's documentation (the published port is held by `com.docker.backend.exe`) but has not been
+  verified on a real Docker Desktop install yet. If the container is not shown, please open an issue
+  with the `--debug` output.
 
 ## Troubleshooting
 

@@ -100,6 +100,8 @@ port 可以寫成 `3000` 或 `:3000`，選項放在 port 前後都可以。
 - 不追進 WSL1 的 distro；WSL1 的行程會直接出現在 Windows 這一側。
 - 關閉服務或其他使用者的 Windows 行程需要系統管理員權限，請用「以系統管理員身分執行」開啟終端機。這類行程的路徑、指令列與工作目錄也讀不到。
 - distro 裡需要有 `ss`（iproute2）或 `netstat`，多數 distro 預設就有。
+- Docker：裝在 WSL distro 裡的 Docker 引擎已實測。Docker Desktop 是依照 Docker 官方文件的行為處理（對外 port 由
+  `com.docker.backend.exe` 佔用），還沒有在真正的 Docker Desktop 上驗證過。如果沒有顯示容器，請附上 `--debug` 的輸出回報。
 - 在 PowerShell 5.1 裡把輸出接到管線時，中文可能變成亂碼；直接顯示在終端機上沒有問題。
 
 ## 疑難排解
