@@ -27,6 +27,7 @@ type options struct {
 }
 
 // parseArgs 解析參數；旗標可以放在 port 前面或後面，短旗標可以合併（-kf）。
+// --lang 的值在這裡只檢查對不對，實際套用由 pickLanguage 在更早的時候完成。
 func parseArgs(args []string) (options, error) {
 	var o options
 	havePort := false
@@ -47,7 +48,8 @@ func parseArgs(args []string) (options, error) {
 		}
 		return true
 	}
-	for _, a := range args {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
 		switch {
 		case a == "--no-kill":
 			o.noKill = true
@@ -61,21 +63,35 @@ func parseArgs(args []string) (options, error) {
 			o.version = true
 		case a == "--debug":
 			o.debug = true
+		case a == "--lang":
+			if i+1 >= len(args) {
+				return o, errors.New(T.NeedLangValue)
+			}
+			i++
+			if _, ok := parseLanguage(args[i]); !ok {
+				return o, fmt.Errorf(T.BadLang, args[i])
+			}
+		case strings.HasPrefix(a, "--lang="):
+			if value := strings.TrimPrefix(a, "--lang="); value == "" {
+				return o, errors.New(T.NeedLangValue)
+			} else if _, ok := parseLanguage(value); !ok {
+				return o, fmt.Errorf(T.BadLang, value)
+			}
 		case strings.HasPrefix(a, "--"):
-			return o, fmt.Errorf(msgUnknownFlag, a)
+			return o, fmt.Errorf(T.UnknownFlag, a)
 		case len(a) > 1 && a[0] == '-':
 			for _, c := range a[1:] {
 				if !short(c) {
-					return o, fmt.Errorf(msgUnknownFlag, a)
+					return o, fmt.Errorf(T.UnknownFlag, a)
 				}
 			}
 		default:
 			if havePort {
-				return o, errors.New(msgOnePort)
+				return o, errors.New(T.OnePort)
 			}
 			p, err := strconv.Atoi(strings.TrimPrefix(a, ":"))
 			if err != nil || p < 1 || p > 65535 {
-				return o, fmt.Errorf(msgBadPort, a)
+				return o, fmt.Errorf(T.BadPort, a)
 			}
 			o.port, havePort = p, true
 		}
@@ -84,16 +100,16 @@ func parseArgs(args []string) (options, error) {
 		return o, nil
 	}
 	if o.noKill && (o.kill || o.force) {
-		return o, errors.New(msgFlagConflict)
+		return o, errors.New(T.FlagConflict)
 	}
 	if !havePort {
 		switch {
 		case o.noKill:
-			return o, fmt.Errorf(msgNeedPort, "-n")
+			return o, fmt.Errorf(T.NeedPort, "-n")
 		case o.kill:
-			return o, fmt.Errorf(msgNeedPort, "-k")
+			return o, fmt.Errorf(T.NeedPort, "-k")
 		case o.force:
-			return o, fmt.Errorf(msgNeedPort, "-f")
+			return o, fmt.Errorf(T.NeedPort, "-f")
 		}
 	}
 	return o, nil
@@ -104,23 +120,28 @@ func main() {
 }
 
 func run(args []string) int {
+	// 語言要在解析參數之前決定，參數錯誤的訊息才會用對語言。
+	system := systemLanguageTags()
+	setLanguage(pickLanguage(args, os.Getenv(envLang), system))
+
 	opts, err := parseArgs(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "wslport：%v\n用 wslport -h 查看用法。\n", err)
+		fmt.Fprintf(os.Stderr, T.ErrorWithHint, err)
 		return 2
 	}
 	initConsole()
 	debugEnabled = opts.debug
 	if debugEnabled {
-		// 從 Windows 建立行程到程式開始執行的時間：這段若很長，多半是防毒軟體在掃描執行檔。
+		// 從 Windows 建立行程到程式開始執行的時間：這段若很長，延遲發生在程式之外（例如防毒軟體掃描執行檔）。
 		var created, exit, kernel, user windows.Filetime
 		if windows.GetProcessTimes(windows.CurrentProcess(), &created, &exit, &kernel, &user) == nil {
-			debugf("行程建立到開始執行：%v", time.Since(time.Unix(0, created.Nanoseconds())).Round(time.Millisecond))
+			debugf("process creation to program start: %v", time.Since(time.Unix(0, created.Nanoseconds())).Round(time.Millisecond))
 		}
+		debugf("version %s, system UI languages %v, %s=%q", version, system, envLang, os.Getenv(envLang))
 	}
 	switch {
 	case opts.help:
-		fmt.Print(usageText)
+		fmt.Print(T.Usage)
 		return 0
 	case opts.version:
 		fmt.Println("wslport " + version)
@@ -132,7 +153,7 @@ func run(args []string) int {
 }
 
 func fail(err error) int {
-	fmt.Fprintln(os.Stderr, red(fmt.Sprintf("wslport：%v", err)))
+	fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.ErrorLine, err)))
 	return 2
 }
 
@@ -161,7 +182,7 @@ func runPort(opts options) int {
 	if len(targets) == 0 {
 		if opts.kill {
 			// 指定了 -k 卻什麼都沒關：讓腳本能從結束碼看出 port 沒有被釋放。
-			fmt.Fprintln(os.Stderr, yellow("wslport：-k 沒有關閉任何行程。"))
+			fmt.Fprintln(os.Stderr, yellow(T.KillNothing))
 			return 2
 		}
 		return 0
@@ -206,15 +227,15 @@ func chooseTargets(rep *Report, opts options) []*Owner {
 		if opts.kill {
 			return killable
 		}
-		if ans, _ := ask(fmt.Sprintf("要關掉 %s 嗎？ [y/N] ", targetLabel(killable[0]))); isYes(ans) {
+		if ans, _ := ask(fmt.Sprintf(T.AskKill, targetLabel(killable[0]))); isYes(ans) {
 			return killable
 		}
 		return nil
 	}
 	if opts.kill {
-		fmt.Fprintln(promptOut, yellow("有多個佔用者，-k 不適用，請選擇要關閉的對象。"))
+		fmt.Fprintln(promptOut, yellow(T.MultiNoK))
 	}
-	ans, ok := ask(fmt.Sprintf("要關掉哪一個？輸入編號（%s），a 表示全部，直接按 Enter 取消：", strings.Join(numbers, "、")))
+	ans, ok := ask(fmt.Sprintf(T.AskWhich, strings.Join(numbers, T.ListSep)))
 	if !ok || ans == "" {
 		return nil
 	}
@@ -222,10 +243,10 @@ func chooseTargets(rep *Report, opts options) []*Owner {
 		return killable
 	}
 	var chosen []*Owner
-	for _, tok := range strings.FieldsFunc(ans, func(r rune) bool { return r == ',' || r == ' ' || r == '、' }) {
+	for _, tok := range strings.FieldsFunc(ans, func(r rune) bool { return r == ',' || r == ' ' || r == listComma }) {
 		o := byNumber[tok]
 		if o == nil {
-			fmt.Fprintf(promptOut, "沒有編號「%s」，已取消。\n", tok)
+			fmt.Fprintf(promptOut, T.NoSuchNumber+"\n", tok)
 			return nil
 		}
 		chosen = append(chosen, o)
@@ -239,11 +260,11 @@ func closeOwner(o *Owner, opts options) bool {
 		ok := true
 		for _, c := range o.Containers {
 			if err := stopContainer(o.Distro, c.ID); err != nil {
-				fmt.Fprintln(os.Stderr, red(fmt.Sprintf("停不了容器 %s：%v", c.Name, err)))
+				fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.StopContainerFailed, c.Name, err)))
 				ok = false
 				continue
 			}
-			fmt.Println(green(fmt.Sprintf("已停止容器 %s。", c.Name)))
+			fmt.Println(green(fmt.Sprintf(T.ContainerStopped, c.Name)))
 		}
 		return ok
 	case o.Where == whereWindows:
@@ -258,19 +279,19 @@ func closeWindows(o *Owner) bool {
 	err := killWinProcess(uint32(o.PID), o.winCreated)
 	switch {
 	case err == nil:
-		fmt.Println(green(fmt.Sprintf("已關閉 %s。", label)))
+		fmt.Println(green(fmt.Sprintf(T.Killed, label)))
 		return true
 	case errors.Is(err, errGone):
-		fmt.Printf("%s 已經不在了。\n", label)
+		fmt.Printf(T.AlreadyGone+"\n", label)
 		return true
 	case errors.Is(err, errPIDReused):
-		fmt.Fprintln(os.Stderr, red(fmt.Sprintf("PID %d 已經換成別的行程，為了安全沒有關閉，請重新查詢。", o.PID)))
+		fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.PIDReused, o.PID)))
 	case errors.Is(err, errStillAlive):
-		fmt.Fprintln(os.Stderr, red(fmt.Sprintf("已要求終止 %s，但它在 3 秒內沒有結束。", label)))
+		fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.WinStillAlive, label)))
 	case errors.Is(err, windows.ERROR_ACCESS_DENIED):
-		fmt.Fprintln(os.Stderr, red(fmt.Sprintf("關不掉 %s：權限不足。請用「以系統管理員身分執行」開啟 Windows 終端機後再試一次。", label)))
+		fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.AccessDenied, label)))
 	default:
-		fmt.Fprintln(os.Stderr, red(fmt.Sprintf("關不掉 %s：%v", label, err)))
+		fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.KillFailed, label, err)))
 	}
 	return false
 }
@@ -285,28 +306,28 @@ func closeWSL(o *Owner, opts options) bool {
 		status, err := killInDistro(o.Distro, o.PID, o.startTicks, sig)
 		switch {
 		case err != nil:
-			fmt.Fprintln(os.Stderr, red(fmt.Sprintf("關不掉 %s：%v", label, err)))
+			fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.KillFailed, label, err)))
 			return false
 		case status == "killed":
-			fmt.Println(green(fmt.Sprintf("已關閉 %s。", label)))
+			fmt.Println(green(fmt.Sprintf(T.Killed, label)))
 			return true
 		case status == "gone":
-			fmt.Printf("%s 已經不在了。\n", label)
+			fmt.Printf(T.AlreadyGone+"\n", label)
 			return true
 		case status == "mismatch":
-			fmt.Fprintln(os.Stderr, red(fmt.Sprintf("PID %d 已經換成別的行程，為了安全沒有關閉，請重新查詢。", o.PID)))
+			fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.PIDReused, o.PID)))
 			return false
 		case sig == "KILL":
-			fmt.Fprintln(os.Stderr, red(fmt.Sprintf("已送出 SIGKILL，但 %s 仍然存在。", label)))
+			fmt.Fprintln(os.Stderr, red(fmt.Sprintf(T.SigkillFailed, label)))
 			return false
 		}
 		// 送了 SIGTERM 卻還活著。
-		fmt.Fprintln(os.Stderr, yellow(fmt.Sprintf("%s 在 3 秒內沒有回應 SIGTERM。", label)))
+		fmt.Fprintln(os.Stderr, yellow(fmt.Sprintf(T.NoSigterm, label)))
 		if opts.kill {
-			fmt.Fprintln(os.Stderr, "加上 -f 可以直接強制終止。")
+			fmt.Fprintln(os.Stderr, T.UseForce)
 			return false
 		}
-		if ans, _ := ask("要強制終止 (SIGKILL) 嗎？ [y/N] "); !isYes(ans) {
+		if ans, _ := ask(T.AskSigkill); !isYes(ans) {
 			return false
 		}
 		sig = "KILL"
@@ -366,33 +387,32 @@ func recheck(port int, closed []*Owner, began time.Time) {
 		again = append(again, o)
 	}
 	if len(again) == 0 && len(rep.Orphans) == 0 {
-		msg := fmt.Sprintf("Port %d 已釋放。", port)
+		msg := fmt.Sprintf(T.Released, port)
 		if relayLingers {
-			msg += "（Windows 端的 wslrelay 轉送大約 1 秒內會消失。）"
+			msg += T.RelayLingers
 		}
 		fmt.Println(green(msg))
 		return
 	}
 	for _, o := range again {
-		who := whereText(o) + " " + o.Label()
 		switch classifyAfter(o, closed, began) {
 		case leftoverWorker:
-			fmt.Println(yellow(fmt.Sprintf("關掉的是主行程，但它的子行程 %s 還佔著 port %d；再執行一次 wslport %d 就能關掉。", o.Label(), port, port)))
+			fmt.Println(yellow(fmt.Sprintf(T.LeftoverWorker, o.Label(), port)))
 		case respawned:
-			fmt.Println(yellow(fmt.Sprintf("Port %d 又被 %s 佔用了，看起來有監督程式把它重新啟動。", port, who)))
+			fmt.Println(yellow(fmt.Sprintf(T.Respawned, port, who(o, o.Label()))))
 			switch {
 			case o.Unit != "":
-				fmt.Printf("  它屬於 systemd 服務 %s，請在 distro 裡用 `sudo systemctl stop %s` 停止。\n", o.Unit, o.Unit)
+				fmt.Printf(T.HintSystemd+"\n", o.Unit)
 			case o.Service:
-				fmt.Println("  它是 Windows 服務，請用「服務」管理員或 `sc stop` 停止。")
+				fmt.Println(T.HintWinService)
 			case managedByPM2(o):
-				fmt.Println("  它由 PM2 管理，請用 `pm2 stop` 停止。")
+				fmt.Println(T.HintPM2)
 			case len(o.Ancestors) > 0:
 				parent := o.Ancestors[0]
-				fmt.Printf("  它的父行程是 %s (PID %d)，請從那裡停止。\n", clipMiddle(parent.Text(), 90), parent.PID)
+				fmt.Printf(T.HintParent+"\n", clipMiddle(parent.Text(), 90), parent.PID)
 			}
 		default:
-			fmt.Println(yellow(fmt.Sprintf("Port %d 仍被 %s 佔用。", port, who)))
+			fmt.Println(yellow(fmt.Sprintf(T.StillHeld, port, who(o, o.Label()))))
 		}
 	}
 }

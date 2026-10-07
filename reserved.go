@@ -75,7 +75,7 @@ type reservedDiag struct {
 	Port         int
 	InRange      bool      // port 是否落在某一列保留範圍內
 	Range        portRange // 命中的列
-	Family       string    // "IPv4"、"IPv6" 或 "IPv4／IPv6"
+	Family       string    // "IPv4"、"IPv6" 或 "IPv4/IPv6"
 	DynamicStart int       // 0 表示讀不到
 	DynamicNum   int
 }
@@ -98,7 +98,7 @@ func buildReservedDiag(port int, v4, v6, dynamic string) *reservedDiag {
 	r6, ok6 := findRange(parseExcludedRanges(v6), port)
 	switch {
 	case ok4 && ok6:
-		d.Family = "IPv4／IPv6"
+		d.Family = "IPv4/IPv6"
 		d.Range = r4
 		if r4.Admin && !r6.Admin {
 			d.Range = r6

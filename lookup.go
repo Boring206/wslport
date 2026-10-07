@@ -10,6 +10,8 @@ import (
 const (
 	whereWindows = "windows"
 	whereWSL     = "wsl"
+	// whereWSLVM 是總表裡「在 WSL 虛擬機內、但沒有 distro 認領」那一列的位置。
+	whereWSLVM = "WSL"
 )
 
 // Owner 是佔用某個 port 的一個行程（Windows 或某個 distro 內）。
@@ -207,9 +209,9 @@ func mergeReport(port int, win []*Owner, probes []probeResult, now time.Time) *R
 		}
 		switch {
 		case pr.Err != nil:
-			rep.Notes = append(rep.Notes, fmt.Sprintf(msgProbeFailed, pr.Distro, pr.Err))
+			rep.Notes = append(rep.Notes, fmt.Sprintf(T.ProbeFailed, pr.Distro, pr.Err))
 		case pr.NoTool:
-			rep.Notes = append(rep.Notes, fmt.Sprintf(msgNoTool, pr.Distro))
+			rep.Notes = append(rep.Notes, fmt.Sprintf(T.NoTool, pr.Distro))
 		default:
 			wsl = append(wsl, wslOwners(pr, port, now)...)
 		}
@@ -242,7 +244,7 @@ func newWinOwner(pid uint32, procs map[uint32]winProcInfo, full bool) *Owner {
 	o := &Owner{Where: whereWindows, PID: int(pid)}
 	info, alive := procs[pid]
 	if !alive {
-		o.Name, o.Dead, o.Protected = msgDeadOwner, true, msgProtectDead
+		o.Name, o.Dead, o.Protected = T.DeadOwner, true, T.ProtectDead
 		for _, p := range procs {
 			if p.PPID == pid {
 				o.Heirs = append(o.Heirs, fmt.Sprintf("%s (PID %d)", p.Name, p.PID))
@@ -312,7 +314,7 @@ func lookupPort(port int, diag bool) (*Report, error) {
 	if err == nil {
 		win = buildWinOwners(rows, port, true)
 	}
-	debugf("Windows TCP 表：%d 列監聽者，其中 %d 個行程佔用 port %d，%v", len(rows), len(win), port, time.Since(began).Round(time.Millisecond))
+	debugf("Windows TCP table: %d listener row(s), %d process(es) on port %d, %v", len(rows), len(win), port, time.Since(began).Round(time.Millisecond))
 	wg.Wait()
 	if err != nil {
 		return nil, err
@@ -335,7 +337,7 @@ func lookupPort(port int, diag bool) (*Report, error) {
 	if !rep.WinListening && !(rep.Mode == "mirrored" && hasWSLOwner(rep)) {
 		began := time.Now()
 		rep.Reserved = diagnoseReserved(port)
-		debugf("保留埠範圍（netsh）：%+v，%v", *rep.Reserved, time.Since(began).Round(time.Millisecond))
+		debugf("reserved ranges (netsh): %+v, %v", *rep.Reserved, time.Since(began).Round(time.Millisecond))
 	}
 	if len(rep.Owners) == 0 && len(rep.Orphans) == 0 {
 		if all, err := windowsTCPRows(tcpTableOwnerPIDAll); err == nil {
@@ -390,7 +392,7 @@ func buildListRows(win []listRow, relayPorts map[int]bool, probes []probeResult,
 	}
 	for _, local := range orphanSocks(probes, 0) {
 		if addr, port, ok := splitLocal(local); ok {
-			rows = append(rows, listRow{Port: port, Where: msgWhereWSLVM, Name: "-", Addrs: []string{addr}, Detail: msgOrphanShort})
+			rows = append(rows, listRow{Port: port, Where: whereWSLVM, Name: "-", Addrs: []string{addr}, Detail: T.OrphanShort})
 			wslPorts[port] = true
 		}
 	}
@@ -472,13 +474,13 @@ func listAll() (rows []listRow, notes []string, err error) {
 	for _, pr := range probes {
 		switch {
 		case pr.Err != nil:
-			notes = append(notes, fmt.Sprintf(msgProbeFailed, pr.Distro, pr.Err))
+			notes = append(notes, fmt.Sprintf(T.ProbeFailed, pr.Distro, pr.Err))
 		case pr.NoTool:
-			notes = append(notes, fmt.Sprintf(msgNoTool, pr.Distro))
+			notes = append(notes, fmt.Sprintf(T.NoTool, pr.Distro))
 		}
 	}
 	for _, name := range wsl1 {
-		notes = append(notes, fmt.Sprintf(msgWSL1Skipped, name))
+		notes = append(notes, fmt.Sprintf(T.WSL1Skipped, name))
 	}
 	return buildListRows(win, relayPorts, probes, time.Now()), notes, nil
 }

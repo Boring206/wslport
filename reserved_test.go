@@ -66,7 +66,7 @@ func TestBuildReservedDiag(t *testing.T) {
 	dynamic := "Start Port      : 1024\nNumber of Ports : 13977\n"
 
 	d := buildReservedDiag(2000, excludedZhTW, excludedZhTW, dynamic)
-	if !d.Blocking() || d.Family != "IPv4／IPv6" || d.Range.Start != 1962 || !d.LowDynamicRange() {
+	if !d.Blocking() || d.Family != "IPv4/IPv6" || d.Range.Start != 1962 || !d.LowDynamicRange() {
 		t.Errorf("2000: %+v", d)
 	}
 	// 帶 * 的列（使用者自訂）不會擋住綁定。
