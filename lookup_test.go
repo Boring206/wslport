@@ -105,6 +105,50 @@ func TestMultiDistroDedupe(t *testing.T) {
 	}
 }
 
+// 實機上遇過的情況：一個 distro 有 ss、另一個只有 netstat（Alpine）。
+// 同一個雙堆疊監聽者，ss 寫成 *:3000，netstat 寫成 :::3000，不可以被當成兩個。
+func TestMultiDistroDifferentTools(t *testing.T) {
+	ssLine, _ := parseSockLine(`LISTEN 0 1 *:3000 *:*`)
+	netstatLine, _ := parseSockLine(`tcp        0      0 :::3000                 :::*                    LISTEN      31/nc`)
+	if ssLine.Key() != netstatLine.Key() {
+		t.Fatalf("keys differ: %q vs %q", ssLine.Key(), netstatLine.Key())
+	}
+	probes := []probeResult{
+		probe("Ubuntu", "nat", nil, ssLine),
+		probe("alpine", "nat", []*wslProc{{PID: 31, PPID: 1, Comm: "nc"}}, netstatLine),
+	}
+	rep := mergeReport(3000, []*Owner{winOwner(9876, "wslrelay.exe", "127.0.0.1:3000")}, probes, testNow)
+	if got := labels(rep.Owners); !reflect.DeepEqual(got, []string{"wsl:alpine:nc (PID 31)"}) {
+		t.Errorf("owners = %v", got)
+	}
+	if len(rep.Orphans) != 0 {
+		t.Errorf("the socket was reported a second time as ownerless: %v", rep.Orphans)
+	}
+	if got := rep.Owners[0].Addrs; !reflect.DeepEqual(got, []string{"[::]:3000"}) || rep.Owners[0].NotForwarded {
+		t.Errorf("addrs = %v, notForwarded = %v", got, rep.Owners[0].NotForwarded)
+	}
+
+	// 位址寫法不同但其實是同一個：ss 帶 %介面，netstat 不帶；IPv6 一個有方括號、一個沒有。
+	same := [][2]string{
+		{`LISTEN 0 4096 127.0.0.53%lo:53 0.0.0.0:* users:(("x",pid=1,fd=1))`, `tcp 0 0 127.0.0.53:53 0.0.0.0:* LISTEN 1/x`},
+		{`LISTEN 0 5 [::1]:5173 [::]:*`, `tcp6 0 0 ::1:5173 :::* LISTEN -`},
+		{`LISTEN 0 5 [::]:8080 [::]:*`, `tcp6 0 0 :::8080 :::* LISTEN -`},
+	}
+	for _, pair := range same {
+		a, _ := parseSockLine(pair[0])
+		b, _ := parseSockLine(pair[1])
+		if a.Key() != b.Key() || a.Display() != b.Display() {
+			t.Errorf("%q and %q should match: keys %q / %q, display %q / %q", pair[0], pair[1], a.Key(), b.Key(), a.Display(), b.Display())
+		}
+	}
+	// IPv4 與 IPv6 的萬用位址是兩個不同的 socket，不可以合併。
+	v4, _ := parseSockLine(`LISTEN 0 5 0.0.0.0:8080 0.0.0.0:*`)
+	v6, _ := parseSockLine(`LISTEN 0 5 [::]:8080 [::]:*`)
+	if v4.Key() == v6.Key() {
+		t.Error("0.0.0.0 and :: must stay separate")
+	}
+}
+
 func TestRelayFoldedWhenDistroListens(t *testing.T) {
 	probes := []probeResult{probe("Ubuntu", "nat", []*wslProc{{PID: 4321, PPID: 1, Comm: "node"}}, sock("*:3000", 4321))}
 	win := []*Owner{winOwner(9876, "wslrelay.exe", "127.0.0.1:3000")}
@@ -184,6 +228,31 @@ func TestProtectedProcesses(t *testing.T) {
 	o.Containers = []container{{ID: "abc", Name: "web", Image: "nginx"}}
 	if !o.Killable() || targetLabel(o) != "容器 web" {
 		t.Errorf("killable = %v, label = %q", o.Killable(), targetLabel(o))
+	}
+}
+
+// 實機上遇過的情況：Docker 替同一個 port 開了 IPv4 與 IPv6 兩個 docker-proxy。
+func TestMergeContainerOwners(t *testing.T) {
+	web := []container{{ID: "fe64", Name: "web", Image: "busybox"}}
+	v4 := &Owner{Where: whereWSL, Distro: "Ubuntu", PID: 38138, Name: "docker-proxy", Addrs: []string{"0.0.0.0:3000"}, Containers: web}
+	v6 := &Owner{Where: whereWSL, Distro: "Ubuntu", PID: 38144, Name: "docker-proxy", Addrs: []string{"[::]:3000"}, Containers: web}
+	node := &Owner{Where: whereWindows, PID: 1111, Name: "node.exe", Addrs: []string{"127.0.0.1:3000"}}
+	// 查不到容器的 docker-proxy 維持各自一筆，不可以被併掉。
+	lost := &Owner{Where: whereWSL, Distro: "Debian", PID: 50, Name: "docker-proxy"}
+	other := &Owner{Where: whereWSL, Distro: "Debian", PID: 60, Name: "docker-proxy", Containers: []container{{ID: "aaaa", Name: "api"}}}
+
+	got := mergeContainerOwners([]*Owner{node, v4, v6, lost, other})
+	if want := []string{"windows::node.exe (PID 1111)", "wsl:Ubuntu:docker-proxy (PID 38138)", "wsl:Debian:docker-proxy (PID 50)", "wsl:Debian:docker-proxy (PID 60)"}; !reflect.DeepEqual(labels(got), want) {
+		t.Fatalf("owners = %v", labels(got))
+	}
+	if !reflect.DeepEqual(v4.Addrs, []string{"0.0.0.0:3000", "[::]:3000"}) || !reflect.DeepEqual(v4.Workers, []int{38144}) {
+		t.Errorf("merged owner: addrs %v, workers %v", v4.Addrs, v4.Workers)
+	}
+	// 併成一筆之後，容器是唯一可關閉的對象，-k 才能直接用。
+	rep := &Report{Port: 3000, Owners: mergeContainerOwners([]*Owner{v4, v6})}
+	withInput(t, "")
+	if chosen := chooseTargets(rep, options{kill: true}); len(chosen) != 1 || targetLabel(chosen[0]) != "容器 web" {
+		t.Errorf("chosen = %v", labels(chosen))
 	}
 }
 

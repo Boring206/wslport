@@ -194,6 +194,10 @@ func printOwner(w io.Writer, rep *Report, o *Owner, index int, now time.Time) {
 			note(w, T.NoteNoRelayYet)
 		}
 	}
+	// WSL1 的行程直接跑在 Windows 核心上，出現在 Windows 的 TCP 表裡，但沒有 .exe 路徑。
+	if o.Where == whereWindows && !o.Limited && !o.Dead && o.Exe == "" && o.PID > 4 && len(rep.WSL1) > 0 {
+		note(w, fmt.Sprintf(T.NoteMaybeWSL1, strings.Join(rep.WSL1, T.ListSep)))
+	}
 	if o.Limited {
 		note(w, T.NoteLimited)
 	}

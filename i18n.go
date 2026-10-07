@@ -167,6 +167,7 @@ type catalog struct {
 	NoteNoRelayYet   string
 	NoteLimited      string
 	NoteService      string
+	NoteMaybeWSL1    string // WSL1 distro 清單
 
 	// 保留埠範圍與動態埠範圍
 	DynamicAdvice     string // 起點, 預設起點
@@ -300,6 +301,7 @@ var zhTW = catalog{
 	NoteNoRelayYet:   "Windows 這一側目前沒有對應的轉送；行程剛啟動的話，大約 1 秒內會出現。",
 	NoteLimited:      "權限不足，讀不到路徑與指令。用「以系統管理員身分執行」開啟終端機可以看到更多。",
 	NoteService:      "這是 Windows 服務，強制結束後可能會自動重新啟動；建議改用「服務」管理員或 `sc stop` 停止。",
+	NoteMaybeWSL1:    "它沒有 Windows 的執行檔路徑，很可能是 WSL1 distro（%s）裡的行程。",
 
 	DynamicAdvice:     "\n  這台電腦的動態埠範圍從 %d 開始（Windows 預設是 %d），所以系統保留和對外連線\n  會落在開發常用的 port 上。永久解法（需要系統管理員權限，設定後重新開機）：\n",
 	ReservedSingleFix: "  單一 port 的保留通常由系統元件持有，重新啟動 winnat 也不會釋放，建議換一個 port。",
@@ -429,6 +431,7 @@ Exit codes: 0 an owner was found (or killed), 1 the port is not in use,
 	NoteNoRelayYet:   "Windows has no matching forwarder right now; if the process has just started, one appears within about a second.",
 	NoteLimited:      "Not enough privileges to read the path and command line. Run from an elevated (Run as administrator) terminal to see more.",
 	NoteService:      "This is a Windows service and may restart by itself after being killed; prefer the Services console or `sc stop`.",
+	NoteMaybeWSL1:    "It has no Windows executable path, so it is most likely a process inside a WSL1 distro (%s).",
 
 	DynamicAdvice:     "\n  The dynamic port range on this machine starts at %d (the Windows default is %d), so system\n  reservations and outbound connections land on common development ports. Permanent fix\n  (needs an elevated terminal, then a reboot):\n",
 	ReservedSingleFix: "  A single-port reservation is usually held by a system component and restarting winnat does not release it; use another port.",

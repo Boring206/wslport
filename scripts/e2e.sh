@@ -64,6 +64,9 @@ expect_rc() {
 expect_has() {
 	if grep -qF -- "$1" <<<"$OUT"; then ok "$2"; else bad "$2 (output lacks \"$1\")" "$OUT"; fi
 }
+expect_lacks() {
+	if grep -qF -- "$1" <<<"$OUT"; then bad "$2 (output contains \"$1\")" "$OUT"; else ok "$2"; fi
+}
 expect_true() {
 	local label="$1"
 	shift
@@ -129,7 +132,8 @@ expect_has "$WORK/app" "shows the working directory"
 if [ "$MODE" = nat ]; then
 	expect_has "is only a forwarder" "demotes wslrelay on the Windows side to a footnote"
 else
-	skip "wslrelay footnote (the relay only exists in NAT mode)"
+	# Outside NAT mode there is no relay, so nothing about forwarding should be said.
+	expect_lacks "forwarder" "does not talk about forwarding outside NAT mode"
 fi
 run
 expect_true "the list shows this port with its distro" grep -qE "^$P +$DISTRO" <<<"$OUT"
