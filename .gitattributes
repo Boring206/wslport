@@ -1,3 +1,4 @@
 # probe.sh、kill.sh 與啟動器的 shebang 不能是 CRLF。
 * text=auto eol=lf
 *.exe binary
+*.gif binary
