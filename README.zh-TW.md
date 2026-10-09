@@ -4,6 +4,8 @@
 
 查出是誰佔用了 port，連 WSL 裡的行程都追得到，確認後幫你關掉。
 
+![示範：npm run dev 因為 port 3000 被佔用而失敗；wslport 3000 指出是另一個專案的 npm run dev 留在 WSL 裡的 node 行程，確認後把它關掉；再執行一次 npm run dev 就成功啟動](docs/demo.zh-TW.gif)
+
 在 Windows 遇到「port 3000 已被佔用」時，`netstat` 或工作管理員查到的佔用者常常只是 `wslrelay.exe`。
 那是 WSL 的 localhost 轉送程式，真正的佔用者在某個 distro 裡，而且把 `wslrelay.exe` 關掉只會讓所有 WSL
 port 的轉送一起失效。`wslport` 直接告訴你答案：

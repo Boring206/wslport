@@ -5,6 +5,8 @@
 Find out what is holding a TCP port on Windows, even when the real owner is a process inside WSL, and
 kill it once you confirm.
 
+![Demo: npm run dev fails with EADDRINUSE on port 3000; wslport 3000 names the node process that another project's npm run dev left running inside WSL and kills it on confirmation; npm run dev then starts](docs/demo.gif)
+
 When "port 3000 is already in use" on Windows, `netstat` and Task Manager often point at `wslrelay.exe`.
 That is WSL's localhost forwarder. The real owner lives in one of your distros, and killing `wslrelay.exe`
 only breaks forwarding for every WSL port. `wslport` gives you the actual answer:
