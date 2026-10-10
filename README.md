@@ -137,6 +137,13 @@ Windows does not show an owner at all.
 - **The port is taken again right after killing**: a supervisor (systemd, PM2, a Docker restart policy)
   restarts the process. Stop it from the supervisor; wslport tells you which one.
 
+## Questions and feedback
+
+- Bugs, or output that looks wrong: open an [issue](https://github.com/Boring206/wslport/issues) with
+  the `--debug` output.
+- Questions, ideas, or notes on how you use it: start a
+  [discussion](https://github.com/Boring206/wslport/discussions).
+
 ## Development
 
 Requires Go 1.24 or newer and Node.js.
