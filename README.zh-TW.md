@@ -113,6 +113,11 @@ port 可以寫成 `3000` 或 `:3000`，選項放在 port 前後都可以。
 - **在 WSL 裡出現「無法執行 Windows 程式」**：WSL 的 Windows 互通被關閉了，請檢查 `/etc/wsl.conf` 的 `[interop]` 設定。
 - **關閉後 port 馬上又被佔用**：有監督程式（systemd、PM2、Docker 的 restart policy）在重新啟動它，要從監督程式那邊停止；wslport 會指出是哪一個。
 
+## 問題與回饋
+
+- 發現錯誤，或輸出看起來不對：請開 [issue](https://github.com/Boring206/wslport/issues)，並附上 `--debug` 的輸出。
+- 使用上的疑問、功能想法或使用心得：請到 [Discussions](https://github.com/Boring206/wslport/discussions) 發文。
+
 ## 開發
 
 需要 Go 1.24 以上與 Node.js。
