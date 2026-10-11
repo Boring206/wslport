@@ -29,7 +29,7 @@
     "bin/wslport.js",
     "bin/wslport-x64.exe",
     "bin/wslport-arm64.exe",
-    "README.zh-TW.md"
+    "README-zh-TW.md"
   ],
   "os": [
     "win32",

@@ -1,6 +1,6 @@
 # wslport
 
-**English** | [繁體中文](README.zh-TW.md)
+**English** | [繁體中文](README-zh-TW.md)
 
 Find out what is holding a TCP port on Windows, even when the real owner is a process inside WSL, and
 kill it once you confirm.

@@ -13,6 +13,9 @@ better where to report a problem.
 - The README on npm now has the section on questions and feedback, with links to the issues and
   the discussions; it was added to the repository after 0.1.0 had been published. `package.json`
   gives the bug tracker in the form that package scanners recognise.
+- The Traditional Chinese README is now `README-zh-TW.md`. With two files named `README.*`, npm
+  took the Chinese one for the package page of 0.1.0. It now shows the English README, which links
+  to the Chinese one.
 - Building needs Go 1.26 or newer.
 
 ## 0.1.0
