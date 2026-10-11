@@ -18,7 +18,7 @@ function findGo() {
   const probe = spawnSync('go', ['version'], { stdio: 'ignore' });
   if (!probe.error && probe.status === 0) return 'go';
   if (process.platform === 'linux' && existsSync(WINDOWS_GO)) return WINDOWS_GO;
-  console.error('Go was not found. Install Go 1.24 or newer: https://go.dev/dl/');
+  console.error('Go was not found. Install Go 1.26 or newer: https://go.dev/dl/');
   process.exit(1);
 }
 

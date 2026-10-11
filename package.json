@@ -1,6 +1,6 @@
 {
   "name": "wslport",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Find what is holding a TCP port on Windows, following wslrelay.exe into the WSL distro to name the real process. 查出是誰佔用了 port，連 WSL 裡的行程都追得到。",
   "keywords": [
     "wsl",
@@ -13,7 +13,9 @@
     "cli"
   ],
   "homepage": "https://github.com/Boring206/wslport#readme",
-  "bugs": "https://github.com/Boring206/wslport/issues",
+  "bugs": {
+    "url": "https://github.com/Boring206/wslport/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Boring206/wslport.git"

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.1
+
+No change in what the program does. It is built again with current tools, and the package says
+better where to report a problem.
+
+- The executables are built with Go 1.26.9 and `golang.org/x/sys` 0.49.0. Those of 0.1.0 were built
+  with Go 1.25.5 and `golang.org/x/sys` 0.41.0, for which vulnerabilities have since been published,
+  and package scanners showed a warning for wslport because of that. Go's own checker
+  (`govulncheck`) finds none of them reachable from wslport's code, with the old tools as with the
+  new ones.
+- The README on npm now has the section on questions and feedback, with links to the issues and
+  the discussions; it was added to the repository after 0.1.0 had been published. `package.json`
+  gives the bug tracker in the form that package scanners recognise.
+- Building needs Go 1.26 or newer.
+
 ## 0.1.0
 
 First release.

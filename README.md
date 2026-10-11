@@ -146,7 +146,7 @@ Windows does not show an owner at all.
 
 ## Development
 
-Requires Go 1.24 or newer and Node.js.
+Requires Go 1.26 or newer and Node.js.
 
 ```
 npm test         # go vet plus unit tests
