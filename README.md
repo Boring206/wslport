@@ -138,13 +138,15 @@ Windows does not show an owner at all.
   most of it spent calling `wsl.exe`.
 - **"cannot start Windows programs right now" inside WSL**: before it starts its program, wslport
   looks at the kernel setting that hands `.exe` files to Windows, and it is missing or switched off.
-  Some distros remove it for every distro when they shut down. The message prints a command that
-  puts a missing one back; `wsl --shutdown` restores it in either case.
-- **Inside WSL, one line of error from WSL after about ten seconds, and nothing else**: this is what
-  happens when Windows interop is switched off for the distro (`[interop] enabled=false` in
-  `/etc/wsl.conf`). WSL itself then fails to start the program and prints its own error. With WSL
-  2.7.13 that was `ERROR: UtilAcceptVsock:273: accept4 failed 110` after ten seconds, and the exit code
-  was 1, although no port was looked up. Switch interop back on, or use wslport from Windows.
+  In a WSL 2 distro, some distros remove it for every distro when they shut down; the message prints
+  a command that puts a missing one back, and `wsl --shutdown` restores it in either case. In a WSL 1
+  distro the setting is missing when `/etc/wsl.conf` has `[interop] enabled=false`.
+- **Inside a WSL 2 distro, one line of error from WSL after about ten seconds, and nothing else**:
+  this is what happens when Windows interop is switched off for the distro (`[interop] enabled=false`
+  in `/etc/wsl.conf`). In WSL 2 the kernel setting stays in place then, so wslport's check passes, and
+  WSL itself fails to start the program and prints its own error. With WSL 2.7.13 that was
+  `ERROR: UtilAcceptVsock:273: accept4 failed 110` after ten seconds, and the exit code was 1, although
+  no port was looked up. Switch interop back on, or use wslport from Windows.
 - **The port is taken again right after killing**: a supervisor (systemd, PM2, a Docker restart policy)
   restarts the process. Stop it from the supervisor; wslport tells you which one.
 
