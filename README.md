@@ -137,14 +137,14 @@ Windows does not show an owner at all.
   antivirus settings is the usual remedy. The lookup itself usually finishes within half a second,
   most of it spent calling `wsl.exe`.
 - **"cannot start Windows programs right now" inside WSL**: before it starts its program, wslport
-  looks for the kernel setting that hands `.exe` files to Windows, and did not find it. Some distros
-  remove it for every distro when they shut down. The message prints a command that puts it back;
-  `wsl --shutdown` does it too.
-- **Inside WSL, one line of error from WSL after about ten seconds, and nothing else**: Windows
-  interop is switched off for this distro (`[interop] enabled=false` in `/etc/wsl.conf`). WSL itself
-  then fails to start the program and prints its own error (with WSL 2.7.13:
-  `ERROR: UtilAcceptVsock:273: accept4 failed 110`). The exit code is 1 in that case, although no port
-  was looked up. Switch interop back on, or use wslport from Windows.
+  looks at the kernel setting that hands `.exe` files to Windows, and it is missing or switched off.
+  Some distros remove it for every distro when they shut down. The message prints a command that
+  puts a missing one back; `wsl --shutdown` restores it in either case.
+- **Inside WSL, one line of error from WSL after about ten seconds, and nothing else**: this is what
+  happens when Windows interop is switched off for the distro (`[interop] enabled=false` in
+  `/etc/wsl.conf`). WSL itself then fails to start the program and prints its own error. With WSL
+  2.7.13 that was `ERROR: UtilAcceptVsock:273: accept4 failed 110` after ten seconds, and the exit code
+  was 1, although no port was looked up. Switch interop back on, or use wslport from Windows.
 - **The port is taken again right after killing**: a supervisor (systemd, PM2, a Docker restart policy)
   restarts the process. Stop it from the supervisor; wslport tells you which one.
 

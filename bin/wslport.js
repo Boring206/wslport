@@ -51,9 +51,9 @@ const messages = {
     noInterop:
       'this WSL cannot start Windows programs right now.\n' +
       'The kernel setting that hands .exe files to Windows is missing or switched off.\n' +
-      'A distro that shuts down can remove it for every distro. Put it back from a Windows terminal with\n' +
+      'A distro that shuts down can remove it for every distro. A missing one is put back from a Windows terminal with\n' +
       repairInterop +
-      'or run wsl --shutdown there and reopen the distro.\n' +
+      'Running wsl --shutdown there and reopening the distro restores it in either case.\n' +
       'You can also install wslport with Node on Windows instead.',
   },
   zh: {
@@ -64,9 +64,9 @@ const messages = {
     noInterop:
       '這個 WSL 現在無法執行 Windows 程式。\n' +
       '核心裡把 .exe 交給 Windows 的那筆設定不見了，或被停用了。\n' +
-      '有些 distro 關閉時會把它清掉，所有 distro 都受影響。在 Windows 的終端機執行下面這一行可以補回來：\n' +
+      '有些 distro 關閉時會把它清掉，所有 distro 都受影響。不見了的話，在 Windows 的終端機執行下面這一行可以補回來：\n' +
       repairInterop +
-      '或在那裡執行 wsl --shutdown 再重新開啟 distro。\n' +
+      '兩種情況都可以在那裡執行 wsl --shutdown，再重新開啟 distro 來恢復。\n' +
       '也可以改用 Windows 上的 Node 安裝 wslport。',
   },
 };
@@ -107,7 +107,7 @@ if (onLinux) {
 }
 
 // WSL 靠核心裡的一筆設定（binfmt_misc）把 .exe 交給 Windows 執行。那筆設定不在的時候（另一個 distro
-// 關閉時把整張表清掉了），啟動 exe 並不會得到明確的錯誤：glibc 會改拿 /bin/sh 去讀那支 exe，印出一串亂碼。
+// 關閉時把整張表清掉了），或被人停用的時候，啟動 exe 並不會得到明確的錯誤：glibc 會改拿 /bin/sh 去讀那支 exe，印出一串亂碼。
 // 所以先看它在不在；看不出來（那個資料夾讀不到）就照舊往下走。
 // 在 /etc/wsl.conf 關掉互通（[interop] enabled=false）是另一回事：那筆設定還在，這裡看不出來，
 // WSL 自己會在大約十秒後印出錯誤。

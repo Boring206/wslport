@@ -110,8 +110,8 @@ port 可以寫成 `3000` 或 `:3000`，選項放在 port 前後都可以。
 
 - **查不到 WSL 裡的行程**：加上 `--debug` 看每個 distro 的探測結果。distro 必須是執行中的 WSL2，而且裡面要有 `ss` 或 `netstat`。
 - **每次執行都要等一兩秒**：`--debug` 的第一行 `process creation to program start` 如果就佔了大部分時間，延遲是發生在 wslport 開始執行之前（例如防毒軟體在掃描執行檔），不是查詢本身慢；通常把 wslport 的執行檔加進防毒軟體的例外清單就能解決。查詢本身通常在半秒內完成，時間主要花在呼叫 `wsl.exe`。
-- **在 WSL 裡出現「現在無法執行 Windows 程式」**：wslport 啟動自己的程式之前，會先看核心裡把 `.exe` 交給 Windows 的那筆設定在不在，結果找不到。有些 distro 關閉時會把它清掉，所有 distro 都受影響。訊息裡附的指令可以把它補回來，`wsl --shutdown` 也可以。
-- **在 WSL 裡等了大約十秒，只出現一行 WSL 的錯誤**：這個 distro 的 Windows 互通被關掉了（`/etc/wsl.conf` 裡的 `[interop] enabled=false`）。這時 WSL 自己就啟動不了程式，印出的是它自己的錯誤（WSL 2.7.13 是 `ERROR: UtilAcceptVsock:273: accept4 failed 110`）。這種情況的結束碼是 1，但其實沒有查過任何 port。請把互通開回來，或改從 Windows 使用 wslport。
+- **在 WSL 裡出現「現在無法執行 Windows 程式」**：wslport 啟動自己的程式之前，會先看核心裡把 `.exe` 交給 Windows 的那筆設定，結果它不見了，或被停用了。有些 distro 關閉時會把它清掉，所有 distro 都受影響。訊息裡附的指令可以把不見的設定補回來；`wsl --shutdown` 在兩種情況都能恢復。
+- **在 WSL 裡等了大約十秒，只出現一行 WSL 的錯誤**：這個 distro 的 Windows 互通被關掉時（`/etc/wsl.conf` 裡的 `[interop] enabled=false`）就會這樣。這時 WSL 自己就啟動不了程式，印出的是它自己的錯誤。在 WSL 2.7.13 上實測，是等了十秒後印出 `ERROR: UtilAcceptVsock:273: accept4 failed 110`，結束碼是 1，但其實沒有查過任何 port。請把互通開回來，或改從 Windows 使用 wslport。
 - **關閉後 port 馬上又被佔用**：有監督程式（systemd、PM2、Docker 的 restart policy）在重新啟動它，要從監督程式那邊停止；wslport 會指出是哪一個。
 
 ## 問題與回饋

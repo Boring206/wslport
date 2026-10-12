@@ -10,8 +10,8 @@ installs has one new check, and the package says better where to report a proble
   scanners showed a warning for wslport because of that. Go's own checker (`govulncheck`) finds none
   of them reachable from wslport's code, with the old tools as with the new ones.
 - Inside WSL, when the kernel setting that hands `.exe` files to Windows is missing (some distros
-  remove it for every distro when they shut down), the launcher now says so and prints the command
-  that puts it back. On most distros it printed the shell's complaints about the bytes of the
+  remove it for every distro when they shut down) or switched off, the launcher now says so and
+  prints the command that puts a missing one back. On most distros it printed the shell's complaints about the bytes of the
   executable instead.
 - The README that goes to npm now has the recorded demo and the section on questions and feedback,
   with links to the issues and the discussions; both were added to the repository after 0.1.0 had
