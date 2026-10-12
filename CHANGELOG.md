@@ -6,9 +6,9 @@ Corrections to what the npm launcher says inside WSL when Windows programs canno
 The program itself is unchanged.
 
 - The message of 0.1.1 was written for WSL 2 distros. In a WSL 1 distro the kernel setting it
-  speaks of is missing when `/etc/wsl.conf` has `[interop] enabled=false`, and neither of the two
-  remedies it names helps there. The message now has a line for WSL 1, and the README says which of
-  its two entries is about which.
+  speaks of is missing when `/etc/wsl.conf` has `[interop] enabled=false`, and the two remedies it
+  names are for WSL 2. The message now has a line for WSL 1, and the README says which of its two
+  entries is about which.
 - When the kernel setting is in place but the program it names cannot be found, the launcher printed
   the same message, which is not true of that state. It now says what it found.
 
