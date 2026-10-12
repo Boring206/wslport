@@ -2,17 +2,24 @@
 
 ## 0.1.1
 
-No change in what the program does. It is built again with current tools, and the package says
-better where to report a problem.
+The program itself is unchanged. It is built again with current tools, the launcher that npm
+installs has one new check, and the package says better where to report a problem.
 
 - The executables are built with Go 1.26.9 and `golang.org/x/sys` 0.49.0. Those of 0.1.0 were built
-  with Go 1.25.5 and `golang.org/x/sys` 0.41.0, for which vulnerabilities have since been published,
-  and package scanners showed a warning for wslport because of that. Go's own checker
-  (`govulncheck`) finds none of them reachable from wslport's code, with the old tools as with the
-  new ones.
-- The README on npm now has the section on questions and feedback, with links to the issues and
-  the discussions; it was added to the repository after 0.1.0 had been published. `package.json`
-  gives the bug tracker in the form that package scanners recognise.
+  with Go 1.25.5 and `golang.org/x/sys` 0.41.0, for which vulnerabilities are published, and package
+  scanners showed a warning for wslport because of that. Go's own checker (`govulncheck`) finds none
+  of them reachable from wslport's code, with the old tools as with the new ones.
+- Inside WSL, when the kernel setting that hands `.exe` files to Windows is missing (some distros
+  remove it for every distro when they shut down), the launcher now says so and prints the command
+  that puts it back. On most distros it printed the shell's complaints about the bytes of the
+  executable instead.
+- The README that goes to npm now has the recorded demo and the section on questions and feedback,
+  with links to the issues and the discussions; both were added to the repository after 0.1.0 had
+  been published. `package.json` gives the bug tracker in the form that package scanners recognise.
+- Corrections in the README. A permanent fix for a reserved port range is printed when the
+  machine's dynamic port range starts below the Windows default, not every time. What is seen when
+  Windows interop is switched off for a distro is described as it happens. The English README has
+  the note on piped output in Windows PowerShell 5.1 that only the Chinese one had.
 - The Traditional Chinese README is now `README-zh-TW.md`. With two files named `README.*`, npm
   took the Chinese one for the package page of 0.1.0. It now shows the English README, which links
   to the Chinese one.

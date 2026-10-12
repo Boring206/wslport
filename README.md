@@ -82,7 +82,8 @@ To choose explicitly, pass `--lang en` or `--lang zh-TW`, or set the `WSLPORT_LA
   are shown and killing uses `docker stop` instead.
 - **Ports that fail to bind although nothing listens**: when a port falls inside a Windows reserved port
   range (Hyper-V/WinNAT), `netstat` shows nothing yet programs get "access denied". `wslport` names the
-  range and prints a temporary and a permanent fix.
+  range and prints a temporary fix, and a permanent one when this machine's dynamic port range starts
+  below the Windows default.
 - **Ports borrowed by an outbound connection**: when the system has handed the port to an outgoing
   connection, it says which program owns it and leaves it alone.
 
@@ -122,6 +123,9 @@ Windows does not show an owner at all.
   Docker's documentation (the published port is held by `com.docker.backend.exe`) but has not been
   verified on a real Docker Desktop install yet. If the container is not shown, please open an issue
   with the `--debug` output.
+- In Windows PowerShell 5.1, sending the output through a pipeline can garble every character outside
+  ASCII: the Chinese text, and the arrows and dashes of the English interface. Shown directly in the
+  terminal it is fine.
 
 ## Troubleshooting
 
@@ -132,8 +136,15 @@ Windows does not show an owner at all.
   antivirus scanning the executable), not in the lookup. Excluding the wslport executable in the
   antivirus settings is the usual remedy. The lookup itself usually finishes within half a second,
   most of it spent calling `wsl.exe`.
-- **"cannot run Windows programs" inside WSL**: Windows interop is disabled; check the `[interop]`
-  section of `/etc/wsl.conf`.
+- **"cannot start Windows programs right now" inside WSL**: before it starts its program, wslport
+  looks for the kernel setting that hands `.exe` files to Windows, and did not find it. Some distros
+  remove it for every distro when they shut down. The message prints a command that puts it back;
+  `wsl --shutdown` does it too.
+- **Inside WSL, one line of error from WSL after about ten seconds, and nothing else**: Windows
+  interop is switched off for this distro (`[interop] enabled=false` in `/etc/wsl.conf`). WSL itself
+  then fails to start the program and prints its own error (with WSL 2.7.13:
+  `ERROR: UtilAcceptVsock:273: accept4 failed 110`). The exit code is 1 in that case, although no port
+  was looked up. Switch interop back on, or use wslport from Windows.
 - **The port is taken again right after killing**: a supervisor (systemd, PM2, a Docker restart policy)
   restarts the process. Stop it from the supervisor; wslport tells you which one.
 

@@ -276,5 +276,21 @@ expect_has "Port $P 目前沒有人使用。" "--lang zh-TW switches the interfa
 OUT="$(WSLPORT_LANG=zh-TW timeout 90 node bin/wslport.js "$P" -n 2>&1 </dev/null)"
 expect_has "目前沒有人使用" "WSLPORT_LANG is honoured from inside WSL"
 
+section "13. Inside WSL, when Windows programs cannot be started"
+# A private mount namespace with an empty binfmt_misc: there the launcher finds no handler for .exe
+# files. Nothing outside that namespace changes.
+empty_binfmt() { unshare -Urm sh -c 'mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc && exec "$@"' sh "$@"; }
+if empty_binfmt true 2>/dev/null; then
+	HANDLERS="$(ls /proc/sys/fs/binfmt_misc)"
+	OUT="$(empty_binfmt timeout 90 "${WP[@]}" 3000 -n 2>&1 </dev/null)"
+	RC=$?
+	expect_rc 2 "exit code is 2"
+	expect_has "cannot start Windows programs right now" "the launcher says what is wrong"
+	expect_has ":WSLInterop:M::MZ::/init:P" "and prints the command that puts the setting back"
+	expect_true "the handlers outside are as they were" test "$(ls /proc/sys/fs/binfmt_misc)" = "$HANDLERS"
+else
+	skip "cannot make a private binfmt_misc here (unshare)"
+fi
+
 printf '\n%d passed, %d failed, %d skipped\n' "$pass" "$fail" "$skipped"
 [ "$fail" -eq 0 ]

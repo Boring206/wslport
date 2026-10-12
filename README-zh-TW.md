@@ -75,7 +75,7 @@ port 可以寫成 `3000` 或 `:3000`，選項放在 port 前後都可以。
 - **是誰啟動它的**：往上列出最多三層父行程，所以看得出這個 `node` 是哪個終端機裡的 `npm run dev` 帶起來的。
 - **Docker 容器**：佔用者是 Docker 替容器開的 port 時，顯示容器名稱與映像，關閉時改用 `docker stop`。
 - **沒有人監聽卻綁不上的 port**：port 落在 Windows 的保留埠範圍（Hyper-V／WinNAT）時，`netstat` 什麼都查不到，
-  程式卻會收到「存取被拒」。`wslport` 會指出是哪一段範圍，並附上暫時與永久的解法。
+  程式卻會收到「存取被拒」。`wslport` 會指出是哪一段範圍，並附上暫時的解法；這台電腦的動態埠範圍起點低於 Windows 預設值時，再附上永久的解法。
 - **被對外連線暫時借用的 port**：系統把這個 port 分配給某條對外連線時，會說明是哪個程式，但不會去關它。
 
 ## 關閉行程時的保護
@@ -104,13 +104,14 @@ port 可以寫成 `3000` 或 `:3000`，選項放在 port 前後都可以。
 - distro 裡需要有 `ss`（iproute2）或 `netstat`，多數 distro 預設就有。
 - Docker：裝在 WSL distro 裡的 Docker 引擎已實測。Docker Desktop 是依照 Docker 官方文件的行為處理（對外 port 由
   `com.docker.backend.exe` 佔用），還沒有在真正的 Docker Desktop 上驗證過。如果沒有顯示容器，請附上 `--debug` 的輸出回報。
-- 在 PowerShell 5.1 裡把輸出接到管線時，中文可能變成亂碼；直接顯示在終端機上沒有問題。
+- 在 Windows PowerShell 5.1 裡把輸出接到管線時，ASCII 以外的字元都可能變成亂碼：中文，以及英文介面裡的箭頭與破折號。直接顯示在終端機上沒有問題。
 
 ## 疑難排解
 
 - **查不到 WSL 裡的行程**：加上 `--debug` 看每個 distro 的探測結果。distro 必須是執行中的 WSL2，而且裡面要有 `ss` 或 `netstat`。
 - **每次執行都要等一兩秒**：`--debug` 的第一行 `process creation to program start` 如果就佔了大部分時間，延遲是發生在 wslport 開始執行之前（例如防毒軟體在掃描執行檔），不是查詢本身慢；通常把 wslport 的執行檔加進防毒軟體的例外清單就能解決。查詢本身通常在半秒內完成，時間主要花在呼叫 `wsl.exe`。
-- **在 WSL 裡出現「無法執行 Windows 程式」**：WSL 的 Windows 互通被關閉了，請檢查 `/etc/wsl.conf` 的 `[interop]` 設定。
+- **在 WSL 裡出現「現在無法執行 Windows 程式」**：wslport 啟動自己的程式之前，會先看核心裡把 `.exe` 交給 Windows 的那筆設定在不在，結果找不到。有些 distro 關閉時會把它清掉，所有 distro 都受影響。訊息裡附的指令可以把它補回來，`wsl --shutdown` 也可以。
+- **在 WSL 裡等了大約十秒，只出現一行 WSL 的錯誤**：這個 distro 的 Windows 互通被關掉了（`/etc/wsl.conf` 裡的 `[interop] enabled=false`）。這時 WSL 自己就啟動不了程式，印出的是它自己的錯誤（WSL 2.7.13 是 `ERROR: UtilAcceptVsock:273: accept4 failed 110`）。這種情況的結束碼是 1，但其實沒有查過任何 port。請把互通開回來，或改從 Windows 使用 wslport。
 - **關閉後 port 馬上又被佔用**：有監督程式（systemd、PM2、Docker 的 restart policy）在重新啟動它，要從監督程式那邊停止；wslport 會指出是哪一個。
 
 ## 問題與回饋
